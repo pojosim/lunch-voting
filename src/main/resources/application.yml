@@ -1,0 +1,21 @@
+spring:
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: "true"
+  datasource:
+    url: jdbc:hsqldb:mem:lunch-voting-db
+    username: "sa"
+    password: ""
+    schema: classpath:/db/schema.sql
+    data: classpath:/db/data.sql
+    sql-script-encoding: UTF-8
+    initialization-mode: always
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: "false"
+    properties:
+      hibernate:
+        format_sql: "true"
+    open-in-view: "false"
