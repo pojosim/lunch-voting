@@ -1,13 +1,9 @@
 package com.example.lunchvoting.entity;
 
-import com.example.lunchvoting.web.dto.DishTo;
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
@@ -28,31 +24,27 @@ public class Dish extends BaseEntity {
     protected String name;
 
     @NotNull
-    @Column(name = "price", nullable = false)
+    @Column(name = "price", nullable = false, precision = 8, scale = 2)
     private BigDecimal price;
 
-    @NotNull
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "menu_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
+    @JoinColumn(name = "menu_id")
     @JsonBackReference
     Menu menu;
 
-    public Dish(String name, BigDecimal price, Menu menu) {
+    public Dish(String name, BigDecimal price) {
         this.name = name;
         this.price = price;
+    }
+
+    public Dish(String name, BigDecimal price, Menu menu) {
+        this(name, price);
         this.menu = menu;
     }
 
     public Dish(Integer id, String name, BigDecimal price, Menu menu) {
         this(name, price, menu);
         this.id = id;
-    }
-
-    public Dish(DishTo dishTo, Menu menu) {
-        name = dishTo.getName();
-        price = dishTo.getPrice();
-        this.menu = menu;
     }
 
     @Override

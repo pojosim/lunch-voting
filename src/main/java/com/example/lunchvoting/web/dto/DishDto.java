@@ -1,6 +1,6 @@
 package com.example.lunchvoting.web.dto;
 
-import com.example.lunchvoting.entity.Dish;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -9,14 +9,11 @@ import java.math.BigDecimal;
 
 @Getter
 @Setter
+@AllArgsConstructor
 @NoArgsConstructor
-public class DishTo {
+public class DishDto {
 
     private String name;
     private BigDecimal price;
 
-    public DishTo(Dish dish) {
-        name = dish.getName();
-        price = dish.getPrice();
-    }
 }

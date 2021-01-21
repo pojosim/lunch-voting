@@ -1,14 +1,21 @@
 package com.example.lunchvoting.service;
 
-import com.example.lunchvoting.AbstactTest;
+import com.example.lunchvoting.AbstractTest;
 import com.example.lunchvoting.entity.Vote;
-import org.junit.jupiter.api.Assertions;
+import com.example.lunchvoting.util.exception.NotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.example.lunchvoting.TestData.*;
+import java.time.LocalTime;
+import java.util.Optional;
 
-class VoteServiceTest extends AbstactTest {
+import static com.example.lunchvoting.TestData.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+class VoteServiceTest extends AbstractTest {
+    public static final LocalTime BEFORE_END_TIME_IS_VOTING = VoteService.END_TIME_IS_VOTING.minusHours(1);
+    public static final LocalTime AFTER_END_TIME_IS_VOTING = VoteService.END_TIME_IS_VOTING.plusHours(1);
+
     private final VoteService voteService;
 
     @Autowired
@@ -18,35 +25,47 @@ class VoteServiceTest extends AbstactTest {
 
     @Test
     void getCountVotesByDate() {
-        int expectedCountVote = voteService.getCountVotesByDate(RESTAURANT_1.getId(), expectedDate);
+        int expectedCountVote = voteService.getCountVotesByDate(RESTAURANT_1.getId(), TODAY_DATE);
         Integer actualCountVote = mapRestaurantIdToCountVote.get(RESTAURANT_1.getId());
-        Assertions.assertEquals(expectedCountVote, actualCountVote);
+        assertEquals(expectedCountVote, actualCountVote);
     }
 
     @Test
     void checkIdExists() {
-        Assertions.assertTrue(voteService.checkIdExists(VOTE1.getId()));
-        Assertions.assertFalse(voteService.checkIdExists(100002));
+        assertTrue(voteService.checkIdExists(VOTE1.getId()));
+        assertFalse(voteService.checkIdExists(100002));
     }
 
     @Test
-    void createVoteToRestaurant() {
-        Vote expectedVote = voteService.createVoteToRestaurant(RESTAURANT_3.getId(), expectedDate, USER4.getId());
-        Vote actualVote = voteRepository.findById(expectedVote.getId()).orElse(null);
-        Assertions.assertNotNull(actualVote);
-        Assertions.assertEquals(expectedVote, actualVote);
+    void voteBeforeEndTime() {
+        assertTrue(voteService.voteToRestaurant(RESTAURANT_1.getId(), USER4.getId(), TODAY_DATE, BEFORE_END_TIME_IS_VOTING));
+        assertTrue(voteRepository.findByUserAndDate(USER1.getId(), TODAY_DATE).isPresent());
     }
 
     @Test
-    void deleteVoteById() {
-        voteService.deleteVoteById(VOTE2.getId());
-        Assertions.assertFalse(voteRepository.existsById(VOTE2.getId()));
+    void voteAfterEndTime() {
+        assertFalse(voteService.voteToRestaurant(RESTAURANT_2.getId(), USER5.getId(), TODAY_DATE, AFTER_END_TIME_IS_VOTING));
+        assertTrue(voteRepository.findByUserAndDate(USER5.getId(), TODAY_DATE).isEmpty());
     }
 
     @Test
-    void findByUserAndDate() {
-        Vote expectedVote = voteService.findByUserAndDate(USER3.getId(), expectedDate).orElse(null);
-        Assertions.assertNotNull(expectedVote);
-        Assertions.assertEquals(expectedVote, VOTE3);
+    void voteToWrongRestaurant() {
+        assertThrows(NotFoundException.class, () -> voteService.voteToRestaurant(2000, USER5.getId(), TODAY_DATE));
+    }
+
+    @Test
+    void repeatVoteBeforeEndTimeSameRestaurant() {
+        assertTrue(voteService.voteToRestaurant(RESTAURANT_1.getId(), USER1.getId(), TODAY_DATE, BEFORE_END_TIME_IS_VOTING));
+        Optional<Vote> vote = voteRepository.findByUserAndDate(USER1.getId(), TODAY_DATE);
+        assertTrue(vote.isPresent());
+        assertMatchRestaurants(vote.get().getRestaurant(), RESTAURANT_1);
+    }
+
+    @Test
+    void repeatBeforeEndTimeAnotherRestaurant() {
+        assertTrue(voteService.voteToRestaurant(RESTAURANT_2.getId(), USER2.getId(), TODAY_DATE, BEFORE_END_TIME_IS_VOTING));
+        Optional<Vote> vote = voteRepository.findByUserAndDate(USER2.getId(), TODAY_DATE);
+        assertTrue(vote.isPresent());
+        assertMatchRestaurants(vote.get().getRestaurant(), RESTAURANT_2);
     }
 }

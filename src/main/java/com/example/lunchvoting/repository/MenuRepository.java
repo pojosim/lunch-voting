@@ -9,17 +9,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Transactional(readOnly = true)
 public interface MenuRepository extends JpaRepository<Menu, Integer> {
 
     @Transactional
-    @Modifying
     @Override
     <T extends Menu> T save(T item);
 
     @Transactional
-    @Modifying
     @Override
     void deleteById(Integer id);
 
@@ -32,5 +31,5 @@ public interface MenuRepository extends JpaRepository<Menu, Integer> {
     List<Menu> findMenusByRestaurantId(@Param("restaurantId") Integer restaurantId);
 
     @Query("select m from Menu m where m.restaurant.id = :restaurant_id and m.date = :date")
-    Menu findMenuByRestaurantAndDate(@Param("restaurant_id") Integer restaurantId, @Param("date") LocalDate date);
+    Optional<Menu> findMenuByRestaurantAndDate(@Param("restaurant_id") Integer restaurantId, @Param("date") LocalDate date);
 }

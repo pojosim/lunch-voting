@@ -1,25 +1,28 @@
 package com.example.lunchvoting.service;
 
-import com.example.lunchvoting.entity.Restaurant;
-import com.example.lunchvoting.entity.User;
 import com.example.lunchvoting.entity.Vote;
+import com.example.lunchvoting.repository.RestaurantRepository;
+import com.example.lunchvoting.repository.UserRepository;
 import com.example.lunchvoting.repository.VoteRepository;
+import com.example.lunchvoting.util.ValidationUtil;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Optional;
 
 @Service
 public class VoteService implements com.example.lunchvoting.service.Service {
+    public static final LocalTime END_TIME_IS_VOTING = LocalTime.of(11, 0);
+
     private final VoteRepository voteRepository;
+    private final UserRepository userRepository;
+    private final RestaurantRepository restaurantRepository;
 
-    @PersistenceContext
-    EntityManager entityManager;
-
-    public VoteService(VoteRepository voteRepository) {
+    public VoteService(VoteRepository voteRepository, UserRepository userRepository, RestaurantRepository restaurantRepository) {
         this.voteRepository = voteRepository;
+        this.userRepository = userRepository;
+        this.restaurantRepository = restaurantRepository;
     }
 
     public int getCountVotesByDate(Integer restaurantId, LocalDate date) {
@@ -31,17 +34,30 @@ public class VoteService implements com.example.lunchvoting.service.Service {
         return voteRepository.existsById(id);
     }
 
-    public Vote createVoteToRestaurant(Integer restaurantId, LocalDate date, Integer userId) {
-        User referenceUser = entityManager.getReference(User.class, userId);
-        Restaurant referenceRestaurant = entityManager.getReference(Restaurant.class, restaurantId);
-        return voteRepository.save(new Vote(date, referenceUser, referenceRestaurant));
+    public boolean voteToRestaurant(Integer restaurantId, Integer userId, LocalDate date) {
+        return voteToRestaurant(restaurantId, userId, date, LocalTime.now());
     }
 
-    public void deleteVoteById(Integer voteId) {
-        voteRepository.deleteById(voteId);
-    }
+    public boolean voteToRestaurant(Integer restaurantId, Integer userId, LocalDate date, LocalTime time) {
+        ValidationUtil.checkNotFoundWithId(restaurantRepository.existsById(restaurantId), restaurantId);
 
-    public Optional<Vote> findByUserAndDate(int userId, LocalDate date) {
-        return voteRepository.findByUserAndDate(userId, date);
+        if (time.isAfter(END_TIME_IS_VOTING)) {
+            return false;
+        }
+
+        Optional<Vote> optionalVote = voteRepository.findByUserAndDate(userId, date);
+        Vote vote;
+        if (optionalVote.isPresent()) {
+            if (optionalVote.get().getRestaurant().getId().equals(restaurantId)) {
+                return true;
+            } else {
+                vote = optionalVote.get();
+                vote.setRestaurant(restaurantRepository.getOne(restaurantId));
+            }
+        } else {
+            vote = new Vote(date, userRepository.getOne(userId), restaurantRepository.getOne(restaurantId));
+        }
+        voteRepository.save(vote);
+        return !vote.isNew();
     }
 }

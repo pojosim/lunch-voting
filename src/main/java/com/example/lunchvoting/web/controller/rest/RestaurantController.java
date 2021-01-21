@@ -4,10 +4,11 @@ import com.example.lunchvoting.entity.Restaurant;
 import com.example.lunchvoting.security.AuthorizedUser;
 import com.example.lunchvoting.service.RestaurantService;
 import com.example.lunchvoting.service.VoteService;
+import com.example.lunchvoting.util.DtoUtil;
 import com.example.lunchvoting.util.ValidationUtil;
 import com.example.lunchvoting.util.exception.NotFoundException;
 import com.example.lunchvoting.util.exception.VoteRepeatException;
-import com.example.lunchvoting.web.dto.RestaurantTo;
+import com.example.lunchvoting.web.dto.RestaurantDto;
 import com.example.lunchvoting.web.dto.ResultVote;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +42,10 @@ public class RestaurantController {
     }
 
     @GetMapping(REST_URL)
-    public List<RestaurantTo> getTodayRestaurantsWithMenu() {
+    public List<RestaurantDto> getTodayRestaurantsWithMenu() {
         LocalDate today = LocalDate.now();
         return restaurantService.getRestaurantsWithMenuByDate(today).stream()
-                .map(restaurant -> new RestaurantTo(restaurant, voteService.getCountVotesByDate(restaurant.getId(), today)))
+                .map(restaurant -> DtoUtil.createRestaurantDto(restaurant, voteService.getCountVotesByDate(restaurant.getId(), today)))
                 .collect(Collectors.toList());
     }
 
@@ -62,16 +63,16 @@ public class RestaurantController {
     }
 
     @PostMapping(value = REST_URL + "/{id}/vote")
-    public ResponseEntity<List<ResultVote>> takeVoteForRestaurant(@PathVariable("id") Integer restaurantId, @AuthenticationPrincipal AuthorizedUser authUser) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<String> voteForRestaurant(@PathVariable("id") Integer restaurantId, @AuthenticationPrincipal AuthorizedUser authUser) {
         LocalDate nowDate = LocalDate.now();
         if (!restaurantService.checkIdExistsAndHasMenuByDate(restaurantId, nowDate)) {
             throw new NotFoundException("not found restaurant with menu");
         }
 
-        if (restaurantService.voteToRestaurant(restaurantId, authUser.getId(), nowDate)) {
+        if (voteService.voteToRestaurant(restaurantId, authUser.getId(), nowDate)) {
             log.debug("create vote user {}, to restaurant {}, to date {}", authUser.getId(), restaurantId, nowDate);
-            return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path(REST_URL + "/vote-result").build().toUri()).body(getVoteResults());
+            return ResponseEntity.ok().build();
         } else {
             log.debug("create vote is forbidden, user {}, restaurant {}, date {}", authUser.getId(), restaurantId, nowDate);
             throw new VoteRepeatException("repeat vote is forbidden");

@@ -1,6 +1,6 @@
 package com.example.lunchvoting.web.controller.rest;
 
-import com.example.lunchvoting.AbstactTest;
+import com.example.lunchvoting.AbstractTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
@@ -17,7 +17,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 
 @AutoConfigureMockMvc
 @Transactional
-public class AbstractControllerTest extends AbstactTest {
+public class AbstractControllerTest extends AbstractTest {
 
     private static final CharacterEncodingFilter CHARACTER_ENCODING_FILTER = new CharacterEncodingFilter();
     static {

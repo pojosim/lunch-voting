@@ -4,17 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "VOTES", uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "date"}, name = "user_date_idx")})
+@Table(name = "VOTES", uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "vote_date"}, name = "user_date_idx")})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,19 +18,17 @@ import java.time.LocalDate;
 public class Vote extends BaseEntity {
 
     @NotNull
-    @Column(name = "date", nullable = false)
+    @Column(name = "vote_date", nullable = false)
     private LocalDate date;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "restaurant_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
     private Restaurant restaurant;
 
 

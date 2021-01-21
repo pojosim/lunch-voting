@@ -3,7 +3,6 @@ package com.example.lunchvoting.repository;
 import com.example.lunchvoting.entity.User;
 import com.example.lunchvoting.entity.Vote;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,27 +14,23 @@ import java.util.Optional;
 public interface VoteRepository extends JpaRepository<Vote, Integer> {
 
     @Transactional
-    @Modifying
     @Override
     <T extends Vote> T save(T item);
 
     @Transactional
-    @Modifying
     @Override
     void deleteById(Integer id);
 
     @Transactional
-    @Modifying
     void deleteByUser(User user);
 
     @Transactional
-    @Modifying
     void deleteByUserAndDate(User user, LocalDate date);
 
     @Query("select count(v) from Vote v where v.restaurant.id = :restaurantId and v.date = :date")
     int getCountVotesByDate(@Param("restaurantId") Integer restaurantId, @Param("date") LocalDate date);
 
-    @Query("select v from Vote v where v.date = :date and v.user.id = :userId")
+    @Query("select v from Vote v join fetch v.restaurant where v.date = :date and v.user.id = :userId")
     Optional<Vote> findByUserAndDate(@Param("userId") Integer userId, @Param("date") LocalDate date);
 
 //    @Query(value = "select t.id, t.name, t.votes " +

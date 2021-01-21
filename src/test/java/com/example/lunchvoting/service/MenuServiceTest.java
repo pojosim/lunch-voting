@@ -1,46 +1,63 @@
 package com.example.lunchvoting.service;
 
-import com.example.lunchvoting.AbstactTest;
+import com.example.lunchvoting.AbstractTest;
+import com.example.lunchvoting.entity.Dish;
 import com.example.lunchvoting.entity.Menu;
-import com.example.lunchvoting.repository.MenuRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 import java.time.Month;
-import java.util.Optional;
+import java.util.List;
 
 import static com.example.lunchvoting.TestData.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-class MenuServiceTest extends AbstactTest {
+class MenuServiceTest extends AbstractTest {
     private final MenuService menuService;
-    private final MenuRepository menuRepository;
 
     @Autowired
-    public MenuServiceTest(MenuService menuService, MenuRepository menuRepository) {
+    public MenuServiceTest(MenuService menuService) {
         this.menuService = menuService;
-        this.menuRepository = menuRepository;
     }
 
     @Test
-    void createMenu() {
-        Menu actualMenu = menuService.createMenu(RESTAURANT_1.getId(), LocalDate.of(2021, Month.DECEMBER, 31));
-        Assertions.assertFalse(actualMenu.isNew());
-        Optional<Menu> optionalExpectedMenu = menuRepository.findById(actualMenu.getId());
-        Assertions.assertTrue(optionalExpectedMenu.isPresent());
-        optionalExpectedMenu.ifPresent(expectedMenu -> Assertions.assertEquals(expectedMenu, actualMenu));
+    void save() {
+        LocalDate date = TODAY_DATE;
+        List<Dish> expectedDishes = createNewDishes();
+        menuService.saveOrUpdate(RESTAURANT_3.getId(), expectedDishes, date);
+        Menu actualMenu = menuRepository.findMenuByRestaurantAndDate(RESTAURANT_3.getId(), date).orElse(null);
+        assertNotNull(actualMenu);
+        assertNotNull(actualMenu.getDishes());
+        assertMatchDishes(expectedDishes, actualMenu.getDishes());
+    }
+
+    @Test
+    void update() {
+        List<Dish> expectedDishes = createNewDishes();
+        menuService.saveOrUpdate(RESTAURANT_1.getId(), expectedDishes, TODAY_DATE);
+        Menu actualMenu = menuRepository.findMenuByRestaurantAndDate(RESTAURANT_1.getId(), TODAY_DATE).orElse(null);
+        assertNotNull(actualMenu);
+        assertNotNull(actualMenu.getDishes());
+        assertMatchDishes(expectedDishes, actualMenu.getDishes(), "id");
+    }
+
+    @Test
+    void delete() {
+        menuService.delete(RESTAURANT_1.getId(), TODAY_DATE);
+        assertFalse(menuService.checkDateIsExists(TODAY_DATE, RESTAURANT_1.getId()));
     }
 
     @Test
     void checkIdExists() {
-        Assertions.assertTrue(menuService.checkIdExists(RESTAURANT_1.getMenus().get(0).getId()));
-        Assertions.assertFalse(menuService.checkIdExists(2000));
+        assertTrue(menuService.checkIdExists(getTodayMenu(RESTAURANT_1).getId()));
+        assertFalse(menuService.checkIdExists(2000));
     }
 
     @Test
     void checkDateIsExists() {
-        Assertions.assertTrue(menuService.checkDateIsExists(expectedDate, RESTAURANT_1.getId()));
-        Assertions.assertFalse(menuService.checkDateIsExists(expectedDate, RESTAURANT_3.getId()));
+        assertTrue(menuService.checkDateIsExists(TODAY_DATE, RESTAURANT_1.getId()));
+        assertFalse(menuService.checkDateIsExists(TODAY_DATE, 100000));
     }
 }

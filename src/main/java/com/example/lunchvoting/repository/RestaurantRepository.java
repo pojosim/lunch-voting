@@ -2,7 +2,6 @@ package com.example.lunchvoting.repository;
 
 import com.example.lunchvoting.entity.Restaurant;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,12 +14,10 @@ import java.util.Optional;
 public interface RestaurantRepository extends JpaRepository<Restaurant, Integer> {
 
     @Transactional
-    @Modifying
     @Override
     <T extends Restaurant> T save(T item);
 
     @Transactional
-    @Modifying
     @Override
     void deleteById(Integer id);
 

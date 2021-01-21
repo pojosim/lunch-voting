@@ -1,25 +1,29 @@
 package com.example.lunchvoting.web.controller.rest;
 
-import com.example.lunchvoting.web.dto.RestaurantTo;
+import com.example.lunchvoting.entity.Restaurant;
+import com.example.lunchvoting.service.VoteService;
+import com.example.lunchvoting.util.DtoUtil;
 import com.example.lunchvoting.web.dto.ResultVote;
 import com.example.lunchvoting.web.json.JsonUtil;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.example.lunchvoting.TestData.*;
 import static com.example.lunchvoting.TestUtil.userHttpBasic;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class RestaurantControllerTest extends AbstractControllerTest {
-    private final String rest_vote_url = RestaurantController.REST_URL + "/%s/vote";
+    public static final String REST_VOTE_URL = RestaurantController.REST_URL + "/%s/vote";
 
     @Test
     void getTodayRestaurantsWithMenu() throws Exception {
@@ -28,7 +32,7 @@ class RestaurantControllerTest extends AbstractControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(content().json(JsonUtil.writeValue(List.of(
                         RESTAURANT_1, RESTAURANT_2).stream()
-                        .map(restaurant -> new RestaurantTo(restaurant, mapRestaurantIdToCountVote.get(restaurant.getId())))
+                        .map(restaurant -> DtoUtil.createRestaurantDto(restaurant, mapRestaurantIdToCountVote.get(restaurant.getId())))
                         .collect(Collectors.toList())
                 )));
     }
@@ -45,7 +49,7 @@ class RestaurantControllerTest extends AbstractControllerTest {
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(content().json(JsonUtil.writeValue(List.of(RESTAURANT_1, RESTAURANT_2, RESTAURANT_3))));
+                .andExpect(content().json(JsonUtil.writeValue(allSavedRestaurants)));
     }
 
     @Test
@@ -72,7 +76,7 @@ class RestaurantControllerTest extends AbstractControllerTest {
     }
 
     @Test
-    void takeVoteForRestaurant() throws Exception {
+    void voteForRestaurant() throws Exception {
         HashMap<Integer, Integer> mapRestaurantIdToCountVoteCopy = new HashMap<>(mapRestaurantIdToCountVote);
         mapRestaurantIdToCountVoteCopy.merge(RESTAURANT_1.getId(), 1, Integer::sum);
 
@@ -80,40 +84,46 @@ class RestaurantControllerTest extends AbstractControllerTest {
                 .map(restaurant -> new ResultVote(restaurant, mapRestaurantIdToCountVoteCopy.get(restaurant.getId())))
                 .collect(Collectors.toList());
 
-        perform(post(String.format(rest_vote_url, RESTAURANT_1.getId())).with(userHttpBasic(USER4)))
-                .andExpect(status().isCreated())
-                .andExpect(content().json(JsonUtil.writeValue(actualVotes)));
+        perform(post(String.format(REST_VOTE_URL, RESTAURANT_1.getId())).with(userHttpBasic(USER4)))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void takeVoteForNotFoundRestaurant() throws Exception {
-        perform(post(String.format(rest_vote_url, 2000)).with(userHttpBasic(USER4)))
+    void voteForNotFoundRestaurant() throws Exception {
+        perform(post(String.format(REST_VOTE_URL, 2000)).with(userHttpBasic(USER4)))
                 .andExpect(status().isUnprocessableEntity());
     }
 
     @Test
-    void takeRepeatVoteForRestaurant() throws Exception {
-        perform(post(String.format(rest_vote_url, RESTAURANT_1.getId())).with(userHttpBasic(USER1)))
-                .andExpect(status().isUnprocessableEntity());
+    void repeatVoteForRestaurant() throws Exception {
+        if (LocalTime.now().isAfter(VoteService.END_TIME_IS_VOTING)) {
+            perform(post(String.format(REST_VOTE_URL, RESTAURANT_3.getId())).with(userHttpBasic(USER5)))
+                    .andExpect(status().isUnprocessableEntity());
+        } else {
+            perform(post(String.format(REST_VOTE_URL, RESTAURANT_2.getId())).with(userHttpBasic(USER5)))
+                    .andExpect(status().isOk());
+        }
     }
 
     @Test
     void createRestaurant() throws Exception {
+        Restaurant expectedRestaurant = createNewRestaurant(TODAY_DATE);
         perform(post(RestaurantController.REST_URL_ADMIN)
                 .with(userHttpBasic(ADMIN))
-                .content(JsonUtil.writeValue(RESTAURANT_4_NON_SAVE))
+                .content(JsonUtil.writeValue(expectedRestaurant))
                 .contentType(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isCreated())
-                .andExpect(content().json(JsonUtil.writeValue(RESTAURANT_4_NON_SAVE)));
+                .andExpect(content().json(JsonUtil.writeValue(expectedRestaurant)));
 
-        Assertions.assertNotNull(restaurantRepository.findRestaurantsByName(RESTAURANT_4_NON_SAVE.getName()));
+        assertNotNull(restaurantRepository.findRestaurantsByName(expectedRestaurant.getName()));
     }
 
     @Test
     void createRestaurantForbidden() throws Exception {
+        Restaurant expectedRestaurant = createNewRestaurant(TODAY_DATE);
         perform(post(RestaurantController.REST_URL_ADMIN)
                 .with(userHttpBasic(USER1))
-                .content(JsonUtil.writeValue(RESTAURANT_4_NON_SAVE))
+                .content(JsonUtil.writeValue(expectedRestaurant))
                 .contentType(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isForbidden());
     }
@@ -124,7 +134,7 @@ class RestaurantControllerTest extends AbstractControllerTest {
                 .andDo(print())
                 .andExpect(status().isNoContent());
 
-        Assertions.assertEquals(restaurantRepository.findAll(), List.of(RESTAURANT_2, RESTAURANT_3));
+        assertFalse(restaurantRepository.existsById(RESTAURANT_1.getId()));
     }
 
     @Test

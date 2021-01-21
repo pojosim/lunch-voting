@@ -1,31 +1,48 @@
 package com.example.lunchvoting.service;
 
+import com.example.lunchvoting.entity.Dish;
 import com.example.lunchvoting.entity.Menu;
-import com.example.lunchvoting.entity.Restaurant;
 import com.example.lunchvoting.repository.MenuRepository;
+import com.example.lunchvoting.repository.RestaurantRepository;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
+
+import static com.example.lunchvoting.util.ValidationUtil.checkNotFoundWithId;
 
 @Service
 public class MenuService implements com.example.lunchvoting.service.Service {
     private final MenuRepository menuRepository;
+    private final RestaurantRepository restaurantRepository;
 
-    @PersistenceContext
-    EntityManager em;
-
-    public MenuService(MenuRepository menuRepository) {
+    public MenuService(MenuRepository menuRepository, RestaurantRepository restaurantRepository) {
         this.menuRepository = menuRepository;
+        this.restaurantRepository = restaurantRepository;
     }
 
-    public Menu createMenu(Integer restaurantId, LocalDate date) {
-        Menu menu = new Menu();
-        menu.setRestaurant(em.getReference(Restaurant.class, restaurantId));
-        menu.setDate(date);
-        return menuRepository.save(menu);
+    public Menu saveOrUpdate(Integer restaurantId, List<Dish> dishes, LocalDate date) {
+        checkNotFoundWithId(restaurantRepository.existsById(restaurantId), restaurantId);
+
+        Optional<Menu> optionalMenu = menuRepository.findMenuByRestaurantAndDate(restaurantId, date);
+
+        if (optionalMenu.isPresent()) {
+            Menu menu = optionalMenu.get();
+            menu.getDishes().clear();
+            menu.getDishes().addAll(dishes);
+            dishes.forEach(dish -> dish.setMenu(menu));
+            return menuRepository.save(menu);
+        } else {
+            Menu menu = new Menu(date, restaurantRepository.getOne(restaurantId), dishes);
+            dishes.forEach(dish -> dish.setMenu(menu));
+            return menuRepository.save(menu);
+        }
+    }
+
+    public void delete(Integer restaurantId, LocalDate date) {
+        checkNotFoundWithId(restaurantRepository.existsById(restaurantId), restaurantId);
+        menuRepository.deleteByRestaurantIdAndDate(restaurantId, date);
     }
 
     @Override
@@ -34,6 +51,6 @@ public class MenuService implements com.example.lunchvoting.service.Service {
     }
 
     public boolean checkDateIsExists(LocalDate date, Integer restaurantId) {
-        return Optional.ofNullable(menuRepository.findMenuByRestaurantAndDate(restaurantId, date)).isPresent();
+        return menuRepository.findMenuByRestaurantAndDate(restaurantId, date).isPresent();
     }
 }

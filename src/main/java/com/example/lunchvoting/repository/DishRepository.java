@@ -9,12 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 public interface DishRepository extends JpaRepository<Dish, Integer> {
 
     @Transactional
-    @Modifying
     @Override
     <T extends Dish> T save(T item);
 
     @Transactional
-    @Modifying
     @Override
     void deleteById(Integer id);
 

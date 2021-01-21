@@ -1,60 +1,63 @@
 package com.example.lunchvoting.repository;
 
-import com.example.lunchvoting.AbstactTest;
-import com.example.lunchvoting.entity.Menu;
+import com.example.lunchvoting.AbstractTest;
+import com.example.lunchvoting.TestData;
 import com.example.lunchvoting.entity.Restaurant;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.example.lunchvoting.TestData.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 
-class RestaurantRepositoryTest extends AbstactTest {
-    private final RestaurantRepository restaurantRepository;
+class RestaurantRepositoryTest extends AbstractTest {
 
-    @Autowired
-    public RestaurantRepositoryTest(RestaurantRepository restaurantRepository) {
-        this.restaurantRepository = restaurantRepository;
+    @Test
+    void save() {
+        Restaurant expectedRestaurant = createNewRestaurant(TODAY_DATE);
+        restaurantRepository.save(expectedRestaurant);
+        Restaurant actualRestaurant = restaurantRepository.findById(expectedRestaurant.getId()).orElse(null);
+        assertNotNull(actualRestaurant);
+        assertMatchRestaurants(expectedRestaurant, actualRestaurant);
     }
 
     @Test
     void findRestaurantsByName() {
-        Restaurant expectedRestaurant = restaurantRepository.findRestaurantsByName(RESTAURANT_1.getName());
-        assertRestaurants(expectedRestaurant, RESTAURANT_1);
+        Restaurant actualRestaurant = restaurantRepository.findRestaurantsByName(RESTAURANT_1.getName());
+        assertNotNull(actualRestaurant);
+        assertMatchRestaurants(RESTAURANT_1, actualRestaurant);
     }
 
     @Test
     void findRestaurantsWithMenuByDate() {
-        List<Restaurant> expectedRestaurants = restaurantRepository.findRestaurantsWithMenuByDate(expectedDate);
-        List<Restaurant> actualRestaurants = List.of(RESTAURANT_1, RESTAURANT_2);
-        Assertions.assertEquals(expectedRestaurants, actualRestaurants);
-        expectedRestaurants.forEach(restaurant -> {
-            Restaurant findRestaurant = actualRestaurants.stream()
-                    .filter(restaurant1 -> restaurant1.getId().equals(restaurant.getId()))
-                    .findFirst().get();
-            org.assertj.core.api.Assertions.assertThat(restaurant.getMenus()).hasSameElementsAs(filterMenu(findRestaurant.getMenus(), expectedDate));
+        List<Restaurant> expectedRestaurants = TestData.allSavedRestaurants.stream()
+                .filter(restaurant -> restaurant.getMenus().stream().anyMatch(menu -> menu.getDate().isEqual(TODAY_DATE)))
+                .collect(Collectors.toList());
+        List<Restaurant> actualRestaurants = restaurantRepository.findRestaurantsWithMenuByDate(TODAY_DATE);
+        assertEquals(expectedRestaurants, actualRestaurants);
+
+        actualRestaurants.forEach(actualRestaurant -> {
+            Restaurant expectedRestaurant = expectedRestaurants.stream()
+                    .filter(restaurant -> restaurant.getId().equals(actualRestaurant.getId()))
+                    .findFirst().orElse(null);
+            assertNotNull(expectedRestaurant);
+            assertNotNull(expectedRestaurant.getMenus());
+            assertEquals(actualRestaurant.getMenus().size(), 1);
+            assertMatchMenu(findMenuByDate(expectedRestaurant.getMenus(), TODAY_DATE), actualRestaurant.getMenus().get(0));
         });
     }
 
     @Test
     void findByIdAndMenuDate() {
-        Optional<Restaurant> optionalRestaurant = restaurantRepository.findByIdAndMenuDate(RESTAURANT_2.getId(), expectedDate);
-        Assertions.assertTrue(optionalRestaurant.isPresent());
-        assertRestaurants(optionalRestaurant.get(), RESTAURANT_2);
-        org.assertj.core.api.Assertions.assertThat(optionalRestaurant.get().getMenus()).hasSameElementsAs(filterMenu(RESTAURANT_2.getMenus(), expectedDate));
+        Restaurant actualRestaurant = restaurantRepository.findByIdAndMenuDate(RESTAURANT_2.getId(), TODAY_DATE).orElse(null);
+        assertNotNull(actualRestaurant);
+        assertMatchRestaurants(RESTAURANT_2, actualRestaurant);
+        assertNotNull(actualRestaurant.getMenus());
+        assertEquals(actualRestaurant.getMenus().size(), 1);
+        assertMatchMenu(findMenuByDate(RESTAURANT_2.getMenus(), TODAY_DATE), actualRestaurant.getMenus().get(0));
     }
 
-    private void assertRestaurants(Restaurant expectedRestaurant, Restaurant actualRestaurant) {
-        Assertions.assertEquals(expectedRestaurant.getName(), actualRestaurant.getName());
-    }
 
-    private List<Menu> filterMenu(List<Menu> menus, LocalDate date) {
-        return menus.stream().filter(menu -> menu.getDate().isEqual(date)).collect(Collectors.toList());
-    }
 }

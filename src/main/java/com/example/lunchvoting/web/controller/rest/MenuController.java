@@ -1,14 +1,11 @@
 package com.example.lunchvoting.web.controller.rest;
 
-import com.example.lunchvoting.entity.Dish;
 import com.example.lunchvoting.entity.Menu;
-import com.example.lunchvoting.repository.DishRepository;
 import com.example.lunchvoting.repository.MenuRepository;
-import com.example.lunchvoting.service.DishService;
 import com.example.lunchvoting.service.MenuService;
 import com.example.lunchvoting.service.RestaurantService;
 import com.example.lunchvoting.util.exception.NotFoundException;
-import com.example.lunchvoting.web.dto.DishTo;
+import com.example.lunchvoting.web.dto.DishDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,7 +20,8 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
+
+import static com.example.lunchvoting.util.DtoUtil.convertDtosToDishes;
 
 @RestController
 @RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -33,16 +31,11 @@ public class MenuController {
 
     private final RestaurantService restaurantService;
     private final MenuService menuService;
-    private final DishService dishService;
-    private final DishRepository dishRepository;
     private final MenuRepository menuRepository;
 
-    public MenuController(RestaurantService restaurantService, MenuService menuService, DishService dishService,
-                          DishRepository dishRepository, MenuRepository menuRepository) {
+    public MenuController(RestaurantService restaurantService, MenuService menuService, MenuRepository menuRepository) {
         this.restaurantService = restaurantService;
         this.menuService = menuService;
-        this.dishService = dishService;
-        this.dishRepository = dishRepository;
         this.menuRepository = menuRepository;
     }
 
@@ -55,16 +48,14 @@ public class MenuController {
     @PostMapping(value = REST_URL_ADMIN, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Menu> createMenuWithDishes(@PathVariable("id") Integer restaurantId,
                                                      @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-                                                     @RequestBody List<DishTo> dishTos) {
+                                                     @RequestBody List<DishDto> dishDtoList) {
         if (!restaurantService.checkIdExists(restaurantId))
             throw new NotFoundException("Not found restaurant " + restaurantId);
         else if (menuService.checkDateIsExists(date, restaurantId))
             throw new DataIntegrityViolationException("Conflict create menu restaurant " + restaurantId);
 
-        log.debug("create menu to restaurant {}, is date {}, dishes {}", restaurantId, date, dishTos);
-
-        Menu menu = menuService.createMenu(restaurantId, date);
-        menu.setDishes(dishService.createDishes(dishTos, menu));
+        log.debug("create menu to restaurant {}, is date {}, dishes {}", restaurantId, date, dishDtoList);
+        Menu menu = menuService.saveOrUpdate(restaurantId, convertDtosToDishes(dishDtoList), date);
 
         URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path(REST_URL_ADMIN)
@@ -75,19 +66,14 @@ public class MenuController {
     @PutMapping(value = REST_URL_ADMIN, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Menu> updateMenuWithDishes(@PathVariable("id") Integer restaurantId,
                                                      @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-                                                     @RequestBody List<DishTo> dishTos) {
+                                                     @RequestBody List<DishDto> dishDtoList) {
         if (!restaurantService.checkIdExists(restaurantId))
             throw new NotFoundException("Not found restaurant " + restaurantId);
         if (!menuService.checkDateIsExists(date, restaurantId))
             throw new NotFoundException("Not found menu " + restaurantId);
 
-        Menu menu = menuRepository.findMenuByRestaurantAndDate(restaurantId, date);
-        log.debug("update menu {}, to restaurant {}, new dishes {}", menu.getId(), restaurantId, dishTos);
-
-        dishRepository.deleteAllDishesByMenuId(menu.getId());
-        List<Dish> dishes = dishTos.stream().map(dishTo -> new Dish(dishTo, menu))
-                .map(dishRepository::save).collect(Collectors.toList());
-        menu.setDishes(dishes);
+        log.debug("update menu to restaurant {}, new dishes {}", restaurantId, dishDtoList);
+        Menu menu = menuService.saveOrUpdate(restaurantId, convertDtosToDishes(dishDtoList), date);
 
         URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path(REST_URL_ADMIN)
